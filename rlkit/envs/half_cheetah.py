@@ -6,7 +6,6 @@ class HalfCheetahEnv(HalfCheetahEnv_):
         return np.concatenate([
             self.sim.data.qpos.flat[1:],
             self.sim.data.qvel.flat,
-            self.get_body_com("torso").flat,
         ]).astype(np.float32).flatten()
 
     def viewer_setup(self):

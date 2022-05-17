@@ -10,6 +10,8 @@ from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.samplers.in_place import InPlacePathSampler
 from rlkit.torch import pytorch_util as ptu
+import matplotlib.pyplot as plt
+import csv
 
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
@@ -90,6 +92,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.plotter = plotter
 
+        self.all_test_returns = []
+
         self.sampler = InPlacePathSampler(
             env=env,
             policy=agent,
@@ -141,6 +145,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         '''
         meta-training loop
         '''
+        logger.log('Anudeep- Reached in the training loop')
         self.pretrain()
         params = self.get_epoch_snapshot(-1)
         logger.save_itr_params(-1, params)
@@ -153,10 +158,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 range(self.num_iterations),
                 save_itrs=True,
         ):
+            logger.log(f'Anudeep- Currently in iter: {it_}')
             self._start_epoch(it_)
             self.training_mode(True)
             if it_ == 0:
-                print('collecting initial pool of data for train and eval')
+                logger.log('collecting initial pool of data for train and eval')
                 # temp for evaluating
                 for idx in self.train_tasks:
                     self.task_idx = idx
@@ -164,6 +170,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.collect_data(self.num_initial_steps, 1, np.inf)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
+                logger.log(f'Anudeep, on task {i}')
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
@@ -181,6 +188,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
+                logger.log(f'Anudeep, on train_step {train_step}')
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 self._do_training(indices)
                 self._n_train_steps_total += 1
@@ -231,8 +239,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.stamp('sample')
 
     def _try_to_eval(self, epoch):
+        logger.log('Anudeep- trying to eval')
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
+            logger.log('Anudeep=-- going to eval')
             self.evaluate(epoch)
 
             params = self.get_epoch_snapshot(epoch)
@@ -384,15 +394,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+            logger.log(f'Anudeep the length of all_rets is: {len(all_rets)}')
+            logger.log(f'Anudeep the length of an element is {len(all_rets[0])}')
             final_returns.append(np.mean([a[-1] for a in all_rets]))
             # record online returns for the first n trajectories
             n = min([len(a) for a in all_rets])
             all_rets = [a[:n] for a in all_rets]
+            # to_plot = all_rets[:]
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             online_returns.append(all_rets)
         n = min([len(t) for t in online_returns])
         online_returns = [t[:n] for t in online_returns]
-        return final_returns, online_returns
+        return final_returns, online_returns #, to_plot
 
     def evaluate(self, epoch):
         if self.eval_statistics is None:
@@ -411,7 +424,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ### train tasks
         # eval on a subset of train tasks for speed
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
-        eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
+        # eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
+        logger.log('evaluating on {} train tasks'.format(len(indices)))
         ### eval train tasks with posterior sampled from the training replay buffer
         train_returns = []
         for idx in indices:
@@ -435,13 +449,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
+        train_final_returns, train_online_returns = self._do_eval(indices, epoch) # to_plot
         eval_util.dprint('train online returns')
         eval_util.dprint(train_online_returns)
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch) # to_plot_test
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
@@ -470,6 +484,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         if self.plotter:
             self.plotter.draw()
+
+        self.all_test_returns.append([avg_test_return])
+        
+        plt.plot(self.all_test_returns)
+        plt.show()
+        plt.savefig(f'cheetah4.png')
+        with open('cheetah4.csv', 'w') as f:
+            write = csv.writer(f)
+            write.writerows(self.all_test_returns)
+
 
     @abc.abstractmethod
     def training_mode(self, mode):

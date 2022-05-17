@@ -1,5 +1,8 @@
 import numpy as np
-from rand_param_envs.walker2d_rand_params import Walker2DRandParamsEnv
+import sys
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.insert(1, '/home/adas/projects/def-jhoey/adas/oyster_tests/oyster/rand_param_envs/rand_param_envs/')
+from walker2d_rand_params import Walker2DRandParamsEnv
 
 from . import register_env
 

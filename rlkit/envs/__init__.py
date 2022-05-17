@@ -20,7 +20,11 @@ def register_env(name):
 
 
 # automatically import any envs in the envs/ directory
-for file in os.listdir(os.path.dirname(__file__)):
-    if file.endswith('.py') and not file.startswith('_'):
-        module = file[:file.find('.py')]
-        importlib.import_module('rlkit.envs.' + module)
+# for file in os.listdir(os.path.dirname(__file__)):
+#     if file.endswith('.py') and not file.startswith('_'):
+#         module = file[:file.find('.py')]
+# 'hopper_rand_params_wrapper', 'walker_rand_params_wrapper'
+modules = ['half_cheetah_dir'] #'half_cheetah_dir', humanoid_dir3
+for module in modules:
+    importlib.import_module('rlkit.envs.' + module)
+# importlib.import_module('rlkit.envs.' + module)

@@ -21,6 +21,7 @@ from configs.default import default_config
 
 
 def experiment(variant):
+    print('Anudeep-- starting experiment')
 
     # create multi-task environment and sample tasks
     env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
@@ -78,6 +79,8 @@ def experiment(variant):
         **variant['algo_params']
     )
 
+    print('Anudeep- Defined the algorithm')
+
     # optionally load pre-trained weights
     if variant['path_to_weights'] is not None:
         path = variant['path_to_weights']
@@ -88,6 +91,8 @@ def experiment(variant):
         # TODO hacky, revisit after model refactor
         algorithm.networks[-2].load_state_dict(torch.load(os.path.join(path, 'target_vf.pth')))
         policy.load_state_dict(torch.load(os.path.join(path, 'policy.pth')))
+
+    print('Anudeep- path_to_weights block passed')
 
     # optional GPU mode
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
@@ -103,12 +108,15 @@ def experiment(variant):
     exp_id = 'debug' if DEBUG else None
     experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
 
+    print('Anudeep- after setup logger')
+
     # optionally save eval trajectories as pkl files
     if variant['algo_params']['dump_eval_paths']:
         pickle_dir = experiment_log_dir + '/eval_trajectories'
         pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
 
     # run the algorithm
+    print('Anudeep-- Going to train the algo')
     algorithm.train()
 
 def deep_update_dict(fr, to):
@@ -127,13 +135,14 @@ def deep_update_dict(fr, to):
 @click.option('--docker', is_flag=True, default=False)
 @click.option('--debug', is_flag=True, default=False)
 def main(config, gpu, docker, debug):
-
+    print('Anudeep-- starting main')
     variant = default_config
     if config:
         with open(os.path.join(config)) as f:
             exp_params = json.load(f)
         variant = deep_update_dict(exp_params, variant)
     variant['util_params']['gpu_id'] = gpu
+    print('Anudeep-- before experiment')
 
     experiment(variant)
 

@@ -1,8 +1,13 @@
 import numpy as np
 
 from .half_cheetah import HalfCheetahEnv
+from .reward_utils import tolerance
 from . import register_env
+from rlkit.core import logger
 
+
+# Running speed above which reward is 1.
+_RUN_SPEED = 10
 
 @register_env('cheetah-dir')
 class HalfCheetahDirEnv(HalfCheetahEnv):
@@ -32,19 +37,24 @@ class HalfCheetahDirEnv(HalfCheetahEnv):
         super(HalfCheetahDirEnv, self).__init__()
 
     def step(self, action):
+        # logger.log('Anudeep- inside reward for cheetah')
         xposbefore = self.sim.data.qpos[0]
         self.do_simulation(action, self.frame_skip)
         xposafter = self.sim.data.qpos[0]
 
         forward_vel = (xposafter - xposbefore) / self.dt
-        forward_reward = self._goal_dir * forward_vel
-        ctrl_cost = 0.5 * 1e-1 * np.sum(np.square(action))
+        # forward_reward = self._goal_dir * forward_vel
+        # ctrl_cost = 0.5 * 1e-1 * np.sum(np.square(action))
+        # reward = forward_reward - ctrl_cost
+
+        reward = tolerance(forward_vel, bounds=(_RUN_SPEED, float('inf')),
+                             margin=_RUN_SPEED,
+                             value_at_margin=0,
+                             sigmoid='linear')
 
         observation = self._get_obs()
-        reward = forward_reward - ctrl_cost
         done = False
-        infos = dict(reward_forward=forward_reward,
-            reward_ctrl=-ctrl_cost, task=self._task)
+        infos = dict(reward_forward=reward, task=self._task)
         return (observation, reward, done, infos)
 
     def sample_tasks(self, num_tasks):
